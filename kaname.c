@@ -1,9 +1,29 @@
 #include <stdio.h>
+#include <string.h>
 
 int readkey(void); /* 環境依存 */
 
-int main(void) {
+char path[256];
+
+int main(int argc, char **argv) {
 	int key;
+
+	if(argc < 2) {
+		FILE *file;
+		for(int i = 1; 1; i ++) {
+			sprintf(path, "名称未設定-%d.txt", i);
+			file = fopen(path, "r");
+			if(!file) {
+				break;
+			}
+			fclose(file);
+		}
+	} else if(argc == 2) {
+		strcpy(path, argv[1]);
+	} else {
+		fputs("コマンドライン引数が多すぎます", stderr);
+		return 1;
+	}
 
 	while(1) {
 		key = readkey();
