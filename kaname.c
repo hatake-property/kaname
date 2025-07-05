@@ -27,10 +27,20 @@ int main(int argc, char **argv) {
 
 	while(1) {
 		key = readkey();
-		if(key == 'q') {
-			break;
+		switch(key) {
+			case 'q':
+				goto EXIT_SUCCESS;
+			case '-':
+				char cmd[1024];
+				gets(cmd);
+				if(strcmp(cmd, "quit") == 0) {
+					goto EXIT_SUCCESS;
+				}
+				break;
 		}
 	}
+
+EXIT_SUCCESS:
 	return 0;
 }
 
