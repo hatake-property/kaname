@@ -11,11 +11,14 @@ struct {
 	enum {
 		TT_WORD,
 		TT_BLANK,
+		TT_NEWLINE,
 	} type;
 } token_s;
 
 void free_token(void);
 int readkey(void); /* 環境依存 */
+void realloc_token(void);
+void realloc_token_str(struct token_s *t);
 
 char path[256];
 struct token_s *token;
@@ -35,58 +38,61 @@ int main(int argc, char **argv) {
 			}
 			fclose(file);
 		}
-		size_of_token = TOKEN_BUFFER;
-		token = malloc(sizeof(struct token) * size_of_token);
-		if(!token) {
-			free_token();
-			return -1;
-		}
-		token[0].size_of = TOKEN_STR_BUFFER;
-		token[0].str = malloc(sizeof(char) * token[0].size_of);
+		size_of_token = 0;
+		token = NULL;
+		realloc_token();
 		strcpy(token[0].str, "\n");
-		if(size_of_token < 2) {
-			void *p;
-			size_of_token += TOKEN_BUFFER;
-			p = realloc(token, size_of_token);
-			if(!p) {
-				free_token();
-				return -1;
-			}
-			for(int i = size_of_token - TOKEN_BUFFER; i < size_of_token; i ++) {
-				token[i].size_of = TOKEN_STR_BUFFER;
-				token[i].str = malloc(sizeof(char) * token[i].size_of);
-			}
-		}
-		token[1].str = NULL;
+		token[0].type = TT_NEWLINE;
 	} else if(argc == 2) {
 		FILE *file;
 		file = fopen(path, "r");
 		if(file) {
 		//	ファイルの内容をトークン化する
-		} else {
+			char ch;
+			int i, j = 0;
 			size_of_token = TOKEN_BUFFER;
 			token = malloc(sizeof(struct token) * size_of_token);
 			if(!token) {
 				free_token();
 				return -1;
 			}
-			token[0].size_of = TOKEN_STR_BUFFER;
-			token[0].str = malloc(sizeof(char) * token[0].size_of);
-			strcpy(token[0].str, "\n");
-			if(size_of_token < 2) {
-				void *p;
-				size_of_token += TOKEN_BUFFER;
-				p = realloc(token, size_of_token);
-				if(!p) {
-					free_token();
-					return -1;
+			for(int i = 0; i < size_of_token; i ++) {
+				token[i].size_of = TOKEN_STR_BUFFER;
+				token[i].str = malloc(sizeof(char) * token[i].size_of);
+			}
+			while((ch = fgetc(file)) != EOF) {
+				if(i >= size_of_token) {
+					realloc_token();
 				}
-				for(int i = size_of_token - TOKEN_BUFFER; i < size_of_token; i ++) {
-					token[i].size_of = TOKEN_STR_BUFFER;
-					token[i].str = malloc(sizeof(char) * token[i].size_of);
+				if(j >= token[i].size_of - 1) {
+					realloc_token_str();
+				}
+				token[i].str[j] = ch;
+				if(token[i].str[j] == '\n') {
+					token[i].type = TT_NEWLINE;
+					token[i].str[j + 1] = '\n';
+					i ++;
+					j = 0;
+				} else if(token[i].str[j] == ' ' && token[i].str[j] != ' ') {
+					token[i].type = TT_BLANK;
+					token[i].str[j + 1] = '\n';
+					i ++;
+					j = 0;
+				} else if(token[i].str[j] != ' ' && token[i].str[j] == ' ') {
+					token[i].type = TT_WORD;
+					token[i].str[j + 1] = '\n';
+					i ++;
+					j = 0;
+				} else {
+					j ++;
 				}
 			}
-			token[1].str = NULL;
+		} else {
+			token = NULL;
+			size_of_token = 0;
+			realloc_token();
+			strcpy(token[i].str, "\n");
+			token[0].type = TT_NEWLINE;
 		}
 		strcpy(path, argv[1]);
 	} else {
@@ -118,6 +124,39 @@ void free_token(void) {
 		free(token[i].str);
 	}
 	free(token);
+}
+
+void realloc_token(void) {
+	void *p;
+	int old_memory;
+
+	old_memory = size_of_token;
+	size_of_token += 1024;
+	p = realloc(token, sizeof(struct token_s) * size_of_token);
+	if(!p) {
+		free_token();
+		fputs("メモリリークが発生しました");
+		return -1;
+	}
+	for(int i = old_memory; i < size_of_token; i ++) {
+		token[i].str = NULL;
+		token[i].size_of = 0;
+		realloc_token_str(token[i]);
+	}
+}
+
+void realloc_token_str(struct token_s *t) {
+	void *p;
+
+	old_memory = t.size_of;
+	t.size_of += 256;
+	p = realloc(t.str, sizeof(char) * size_of_token);
+	if(!p) {
+		free_token();
+		fputs("メモリリークが発生しました");
+		return -1;
+	}
+	t.str[0] = '\0';
 }
 
 /* 以降には環境依存（linuxとWindowsに対応している）コードを記述しています */
