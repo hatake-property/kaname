@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
 //	themeを設定
 	size_of_theme;
 	theme = malloc(sizeof(struct theme_s) * size_of_theme);
-	strcpy(theme[0].name, "default_dark");
+	strcpy(theme[0].name, "dark");
 	theme[0].blank.background = 0x10;
 	theme[0].blank.foreground = 0x10;
 	theme[0].blank.is.blink = 0;
@@ -141,7 +141,7 @@ int main(int argc, char **argv) {
 	theme[0].word.is.bold = 0;
 	theme[0].word.is.italic = 0;
 	theme[0].word.is.underline = 0;
-	strcpy(theme[1].name, "default_light");
+	strcpy(theme[1].name, "light");
 	theme[1].blank.background = 0xe7;
 	theme[1].blank.foreground = 0x10;
 	theme[1].blank.is.blink = 0;
@@ -186,6 +186,12 @@ int main(int argc, char **argv) {
 				fgets(cmd, 1024, stdin);
 				if(strcmp(cmd, "quit") == 0) {
 					goto EXIT_SUCCESS;
+				} else if(strcmp(cmd, "theme") == 0) {
+					printf("theme:%s", theme[used_theme].name);
+				} else if(strcmp(cmd, "theme:dark") == 0) {
+					used_theme = 0;
+				} else if(strcmp(cmd, "theme:light") == 0) {
+					used_theme = 1;
 				}
 				break;
 		}
