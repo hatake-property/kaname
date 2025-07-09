@@ -1,11 +1,26 @@
-#define TOKEN_BUFFER 1024
-#define TOKEN_STR_BUFFER 256
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-struct {
+struct color_s {
+	unsigned char background;
+	unsigned char foreground;
+	struct {
+		unsigned char blink	: 1;
+		unsigned char bold	: 1;
+		unsigned char italic	: 1;
+		unsigned char underline	: 1;
+	} is;
+};
+
+struct theme_s {
+	struct color_s blank;
+	struct color_s newline;
+	struct color_s word;
+	char name[256];
+};
+
+struct token_s {
 	char *str;
 	size_t size_of;
 	enum {
@@ -13,14 +28,18 @@ struct {
 		TT_BLANK,
 		TT_NEWLINE,
 	} type;
-} token_s;
+};
 
-void free_token(void);
+void free_proj(void);
 int readkey(void); /* 環境依存 */
 void realloc_token(void);
 void realloc_token_str(struct token_s *t);
+void set_color(const struct color_s *color); /* 環境依存 */
 
 char path[256];
+struct theme_s *theme;
+int size_of_theme;
+int used_theme;
 struct token_s *token;
 int size_of_token;
 
@@ -53,7 +72,7 @@ int main(int argc, char **argv) {
 			size_of_token = TOKEN_BUFFER;
 			token = malloc(sizeof(struct token) * size_of_token);
 			if(!token) {
-				free_token();
+				free_proj();
 				return -1;
 			}
 			for(int i = 0; i < size_of_token; i ++) {
@@ -100,14 +119,71 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
+//	themeを設定
+	size_of_theme;
+	theme = malloc(sizeof(struct theme_s) * size_of_theme);
+	strcpy(theme[0].name, "default_dark");
+	theme[0].blank.background = 0x10;
+	theme[0].blank.foreground = 0x10;
+	theme[0].blank.is.blink = 0;
+	theme[0].blank.is.bold = 0;
+	theme[0].blank.is.italic = 0;
+	theme[0].blank.is.underline = 0;
+	theme[0].newline.background = 0x10;
+	theme[0].newline.foreground = 0x10;
+	theme[0].newline.is.blink = 0;
+	theme[0].newline.is.bold = 0;
+	theme[0].newline.is.italic = 0;
+	theme[0].newline.is.underline = 0;
+	theme[0].word.background = 0x10;
+	theme[0].word.foreground = 0xe7;
+	theme[0].word.is.blink = 0;
+	theme[0].word.is.bold = 0;
+	theme[0].word.is.italic = 0;
+	theme[0].word.is.underline = 0;
+	strcpy(theme[1].name, "default_light");
+	theme[1].blank.background = 0xe7;
+	theme[1].blank.foreground = 0x10;
+	theme[1].blank.is.blink = 0;
+	theme[1].blank.is.bold = 0;
+	theme[1].blank.is.italic = 0;
+	theme[1].blank.is.underline = 0;
+	theme[1].newline.background = 0xe7;
+	theme[1].newline.foreground = 0xe7;
+	theme[1].newline.is.blink = 0;
+	theme[1].newline.is.bold = 0;
+	theme[1].newline.is.italic = 0;
+	theme[1].newline.is.underline = 0;
+	theme[1].word.background = 0xe7;
+	theme[1].word.foreground = 0xe7;
+	theme[1].word.is.blink = 0;
+	theme[1].word.is.bold = 0;
+	theme[1].word.is.italic = 0;
+	theme[1].word.is.underline = 0;
+	used_theme = 0;
+
 	while(1) {
+		for(int i = 0; i < size_of_token; i ++) {
+			switch(token[i].type) {
+				case TT_BLANK:
+					set_color(theme[used_theme].blank);
+					break;
+				case TT_NEWLINE:
+					set_color(theme[used_theme].newline);
+					break;
+				case TT_WORD:
+					set_color(theme[used_theme].word);
+					break;
+			}
+			printf("%s", token[i].str);
+		}
 		key = readkey();
 		switch(key) {
 			case 'q':
 				goto EXIT_SUCCESS;
 			case '-':
 				char cmd[1024];
-				gets(cmd);
+				fgets(cmd, 1024, stdin);
 				if(strcmp(cmd, "quit") == 0) {
 					goto EXIT_SUCCESS;
 				}
@@ -116,15 +192,19 @@ int main(int argc, char **argv) {
 	}
 
 EXIT_SUCCESS:
+	free_proj();
 	return 0;
 }
 
-void free_token(void) {
+void free_proj(void) {
+	free(theme);
 	for(int i = 0; i < size_of_token; i ++) {
 		free(token[i].str);
 	}
 	free(token);
 }
+
+void get_default_black_color()
 
 void realloc_token(void) {
 	void *p;
@@ -134,7 +214,7 @@ void realloc_token(void) {
 	size_of_token += 1024;
 	p = realloc(token, sizeof(struct token_s) * size_of_token);
 	if(!p) {
-		free_token();
+		free_proj();
 		fputs("メモリリークが発生しました");
 		return -1;
 	}
@@ -152,7 +232,7 @@ void realloc_token_str(struct token_s *t) {
 	t.size_of += 256;
 	p = realloc(t.str, sizeof(char) * size_of_token);
 	if(!p) {
-		free_token();
+		free_proj();
 		fputs("メモリリークが発生しました");
 		return -1;
 	}
@@ -166,6 +246,7 @@ void realloc_token_str(struct token_s *t) {
 #	include <unistd.h>
 #elif defined(_WIN32) || defined(_WIN64)
 #	include<windows.h>
+int can_use_anis = 0;
 #endif
 
 int readkey(void) {
@@ -197,3 +278,22 @@ int readkey(void) {
 
 	return key;
 }
+
+void set_color(const struct color_s *color) {
+#if defined(_WIN32) || defined(_WIN64)
+	DWORD mode = 0;
+	GetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), &mode);
+	mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+	SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), mode);
+#endif
+	printf(
+		"\e[48;5;%d;38;5;%dm%s%s%s%s",
+		color->background,
+		color->foreground,
+		color->is.blink == 1 ? "\e[5m" : "",
+		color->is.bold == 1 ? "\e[1m" : "",
+		color->is.italic == 1 ? "\e[3m" : "",
+		color->is.underline == 1 ? "\e[4m" : ""
+	);
+}
+
