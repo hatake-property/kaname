@@ -2,24 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct color_s {
-	unsigned char background;
-	unsigned char foreground;
-	struct {
-		unsigned char blink	: 1;
-		unsigned char bold	: 1;
-		unsigned char italic	: 1;
-		unsigned char underline	: 1;
-	} is;
-};
-
-struct theme_s {
-	struct color_s blank;
-	struct color_s newline;
-	struct color_s word;
-	char name[256];
-};
-
 struct token_s {
 	char *str;
 	size_t size_of;
@@ -31,10 +13,8 @@ struct token_s {
 };
 
 void free_proj(void);
-int readkey(void); /* 環境依存 */
 void realloc_token(void);
 void realloc_token_str(struct token_s *t);
-void set_color(const struct color_s *color); /* 環境依存 */
 
 char path[256];
 struct theme_s *theme;
@@ -122,44 +102,8 @@ int main(int argc, char **argv) {
 //	themeを設定
 	size_of_theme;
 	theme = malloc(sizeof(struct theme_s) * size_of_theme);
-	strcpy(theme[0].name, "dark");
-	theme[0].blank.background = 0x10;
-	theme[0].blank.foreground = 0x10;
-	theme[0].blank.is.blink = 0;
-	theme[0].blank.is.bold = 0;
-	theme[0].blank.is.italic = 0;
-	theme[0].blank.is.underline = 0;
-	theme[0].newline.background = 0x10;
-	theme[0].newline.foreground = 0x10;
-	theme[0].newline.is.blink = 0;
-	theme[0].newline.is.bold = 0;
-	theme[0].newline.is.italic = 0;
-	theme[0].newline.is.underline = 0;
-	theme[0].word.background = 0x10;
-	theme[0].word.foreground = 0xe7;
-	theme[0].word.is.blink = 0;
-	theme[0].word.is.bold = 0;
-	theme[0].word.is.italic = 0;
-	theme[0].word.is.underline = 0;
-	strcpy(theme[1].name, "light");
-	theme[1].blank.background = 0xe7;
-	theme[1].blank.foreground = 0x10;
-	theme[1].blank.is.blink = 0;
-	theme[1].blank.is.bold = 0;
-	theme[1].blank.is.italic = 0;
-	theme[1].blank.is.underline = 0;
-	theme[1].newline.background = 0xe7;
-	theme[1].newline.foreground = 0xe7;
-	theme[1].newline.is.blink = 0;
-	theme[1].newline.is.bold = 0;
-	theme[1].newline.is.italic = 0;
-	theme[1].newline.is.underline = 0;
-	theme[1].word.background = 0xe7;
-	theme[1].word.foreground = 0xe7;
-	theme[1].word.is.blink = 0;
-	theme[1].word.is.bold = 0;
-	theme[1].word.is.italic = 0;
-	theme[1].word.is.underline = 0;
+	get_theme_default_dark(&theme[0]);
+	get_theme_default_light(&theme[1]);
 	used_theme = 0;
 
 	while(1) {
@@ -210,8 +154,6 @@ void free_proj(void) {
 	free(token);
 }
 
-void get_default_black_color()
-
 void realloc_token(void) {
 	void *p;
 	int old_memory;
@@ -244,62 +186,3 @@ void realloc_token_str(struct token_s *t) {
 	}
 	t.str[0] = '\0';
 }
-
-/* 以降には環境依存（linuxとWindowsに対応している）コードを記述しています */
-
-#if defined(__linux__)
-#	include <termios.h>
-#	include <unistd.h>
-#elif defined(_WIN32) || defined(_WIN64)
-#	include<windows.h>
-int can_use_anis = 0;
-#endif
-
-int readkey(void) {
-	int key;
-
-/*	非カノニカルモードにしてとエコー無効化 */
-#if defined(__linux__)
-	struct termios termios;
-	tcgetattr(STDIN_FILENO, &termios);
-	termios.c_lflag &= ~(ICANON | ECHO);
-	tcsetattr(STDIN_FILENO, TCSANOW, &termios);
-#elif defined(_WIN32) || defined(_WIN64)
-	DWORD mode;
-	GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), &mode);
-	mode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
-	SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), mode);
-#endif
-
-	key = getchar();
-
-/*	カノニカルモードにしてとエコー有効化 */
-#if defined(__linux__)
-	termios.c_lflag |= (ICANON | ECHO);
-	tcsetattr(STDIN_FILENO, TCSANOW, &termios);
-#elif defined(_WIN32) || defined(_WIN64)
-	mode |= (ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
-	SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), mode);
-#endif
-
-	return key;
-}
-
-void set_color(const struct color_s *color) {
-#if defined(_WIN32) || defined(_WIN64)
-	DWORD mode = 0;
-	GetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), &mode);
-	mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-	SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), mode);
-#endif
-	printf(
-		"\e[48;5;%d;38;5;%dm%s%s%s%s",
-		color->background,
-		color->foreground,
-		color->is.blink == 1 ? "\e[5m" : "",
-		color->is.bold == 1 ? "\e[1m" : "",
-		color->is.italic == 1 ? "\e[3m" : "",
-		color->is.underline == 1 ? "\e[4m" : ""
-	);
-}
-
